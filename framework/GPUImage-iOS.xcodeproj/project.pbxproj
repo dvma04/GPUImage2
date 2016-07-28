@@ -965,7 +965,6 @@
 				TargetAttributes = {
 					BCD1B1241C66A262001F2BDC = {
 						CreatedOnToolsVersion = 7.2;
-						DevelopmentTeam = J2U2U9GBML;
 					};
 					BCD1B12E1C66A262001F2BDC = {
 						CreatedOnToolsVersion = 7.2;

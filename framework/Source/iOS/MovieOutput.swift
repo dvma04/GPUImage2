@@ -9,8 +9,8 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     public let sources = SourceContainer()
     public let maximumInputs:UInt = 1
     
-    let assetWriter:AVAssetWriter
-    let assetWriterVideoInput:AVAssetWriterInput
+    public let assetWriter:AVAssetWriter
+    public let assetWriterVideoInput:AVAssetWriterInput
     var assetWriterAudioInput:AVAssetWriterInput?
 
     let assetWriterPixelBufferInput:AVAssetWriterInputPixelBufferAdaptor
