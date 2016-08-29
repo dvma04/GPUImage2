@@ -5,6 +5,12 @@ public protocol AudioEncodingTarget {
     func processAudioBuffer(sampleBuffer:CMSampleBuffer)
 }
 
+public protocol MetadataEncodingTarget {
+    func activateMetadataTrack()
+    func processMetaSampleBuffer(sampleBuffer:CMSampleBuffer)
+    func processMetaObjects(metadataObjects: [AnyObject]!)
+}
+
 public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     public let sources = SourceContainer()
     public let maximumInputs:UInt = 1
@@ -211,7 +217,6 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
         }
     }
 }
-
 
 public extension Timestamp {
     public init(_ time:CMTime) {
