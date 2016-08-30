@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreMedia
 
 public protocol AudioEncodingTarget {
     func activateAudioTrack()
@@ -7,8 +8,12 @@ public protocol AudioEncodingTarget {
 
 public protocol MetadataEncodingTarget {
     func activateMetadataTrack()
-    func processMetaSampleBuffer(sampleBuffer:CMSampleBuffer)
     func processMetaObjects(metadataObjects: [AnyObject]!)
+}
+
+public protocol MetadataOutputTarget {
+    func activateMetadataTrack(description: CMFormatDescription)
+    func appendTimedMetadataGroup(timedMetadataGroup: AVTimedMetadataGroup) -> Bool
 }
 
 public class MovieOutput: ImageConsumer, AudioEncodingTarget {
@@ -29,6 +34,9 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     private var previousFrameTime = kCMTimeNegativeInfinity
     private var previousAudioTime = kCMTimeNegativeInfinity
     private var encodingLiveVideo:Bool
+    private var metadataAdapter: AVAssetWriterInputMetadataAdaptor?
+    private var assetWriterMetadataInput: AVAssetWriterInput?
+
     var pixelBuffer:CVPixelBuffer? = nil
     var renderFramebuffer:Framebuffer!
     
@@ -140,7 +148,7 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
             assetWriter.startSessionAtSourceTime(frameTime)
             startTime = frameTime
         }
-        
+
         // TODO: Run the following on an internal movie recording dispatch queue, context
         guard (assetWriterVideoInput.readyForMoreMediaData || (!encodingLiveVideo)) else {
             debugPrint("Had to drop a frame at time \(frameTime)")
@@ -216,6 +224,25 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
             }
         }
     }
+}
+
+extension MovieOutput: MetadataOutputTarget {
+
+    public func activateMetadataTrack(formatDescription: CMFormatDescription) {
+        let assetInput = AVAssetWriterInput(mediaType: AVMediaTypeMetadata, outputSettings: nil, sourceFormatHint: formatDescription)
+        assetInput.expectsMediaDataInRealTime = encodingLiveVideo
+        let metadataAdapter = AVAssetWriterInputMetadataAdaptor(assetWriterInput: assetInput)
+        assetInput.addTrackAssociationWithTrackOfInput(assetWriterVideoInput, type: AVMediaTypeMetadata)
+        assetWriter.addInput(assetInput)
+        assetWriterMetadataInput = assetInput
+        self.metadataAdapter = metadataAdapter
+    }
+
+    public func appendTimedMetadataGroup(timedMetadataGroup: AVTimedMetadataGroup) -> Bool {
+
+        return metadataAdapter?.appendTimedMetadataGroup(timedMetadataGroup) ?? false
+    }
+
 }
 
 public extension Timestamp {
