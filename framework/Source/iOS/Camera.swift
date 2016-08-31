@@ -104,8 +104,7 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
   let frameRenderingSemaphore = dispatch_semaphore_create(1)
   let cameraProcessingQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0)
   let audioProcessingQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0)
-  let metadataProcessingQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0)
-
+  let metadataProcessingQueue = dispatch_queue_create("com.GPUImage.metadata", DISPATCH_QUEUE_SERIAL)
   let framesToIgnore = 5
   var numberOfFramesCaptured = 0
   var totalFrameTimeDuringCapture: Double = 0.0
@@ -194,6 +193,7 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
       self.stopCapture()
       self.videoOutput.setSampleBufferDelegate(nil, queue: nil)
       self.audioOutput?.setSampleBufferDelegate(nil, queue: nil)
+      self.metadataOutput?.setMetadataObjectsDelegate(nil, queue: nil)
     }
   }
 
@@ -379,30 +379,28 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
     metadataOutput = nil
   }
 
-  func processMetaSampleBuffer(sampleBuffer: CMSampleBuffer) {
-    metadataEncodingTarget?.processMetaSampleBuffer(sampleBuffer)
-  }
-
   private func configureMetadataStream() {
 
     let metaOutput = createMetaDataOutput()
     if captureSession.canAddOutput(metaOutput) {
       captureSession.addOutput(metaOutput)
-      let available = NSSet(array: metaOutput.availableMetadataObjectTypes)
-      available.intersectsSet(Set<String>(faceMetadataObjectTypes))
-      metaOutput.metadataObjectTypes = available.allObjects
-      metadataOutput = metaOutput
+      filterMetadataIfNeeded()
     }
   }
 
   private func createMetaDataOutput() -> AVCaptureMetadataOutput {
     let metadataOutput = AVCaptureMetadataOutput()
-    metadataOutput.setMetadataObjectsDelegate(self, queue: dispatch_get_main_queue())
+    metadataOutput.setMetadataObjectsDelegate(self, queue: metadataProcessingQueue)
+    self.metadataOutput = metadataOutput
     return metadataOutput
   }
 
-  private var faceMetadataObjectTypes: [String] {
-    return [AVMetadataObjectTypeFace]
+  private func filterMetadataIfNeeded() {
+    guard let metaOutput = metadataOutput, let requestedTypes = metadataEncodingTarget?.expectedMetaTypes else { return }
+
+    let available = NSSet(array: metaOutput.availableMetadataObjectTypes)
+    available.intersectsSet(requestedTypes)
+    metaOutput.metadataObjectTypes = available.allObjects
   }
 
 }

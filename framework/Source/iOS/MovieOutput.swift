@@ -7,6 +7,8 @@ public protocol AudioEncodingTarget {
 }
 
 public protocol MetadataEncodingTarget {
+    var expectedMetaTypes:Set<String>? {get}
+
     func activateMetadataTrack()
     func processMetaObjects(metadataObjects: [AnyObject]!)
 }
@@ -30,6 +32,7 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     private var isRecording = false
     private var videoEncodingIsFinished = false
     private var audioEncodingIsFinished = false
+    private var metadataOutputIsFinihsed = false
     private var startTime:CMTime?
     private var previousFrameTime = kCMTimeNegativeInfinity
     private var previousAudioTime = kCMTimeNegativeInfinity
@@ -239,8 +242,12 @@ extension MovieOutput: MetadataOutputTarget {
     }
 
     public func appendTimedMetadataGroup(timedMetadataGroup: AVTimedMetadataGroup) -> Bool {
+        guard let metadataAdapter = metadataAdapter where isRecording else { return  false }
 
-        return metadataAdapter?.appendTimedMetadataGroup(timedMetadataGroup) ?? false
+        return sharedImageProcessingContext.runOperationSynchronously { () -> Bool in
+            return metadataAdapter.appendTimedMetadataGroup(timedMetadataGroup)
+        }
+
     }
 
 }
