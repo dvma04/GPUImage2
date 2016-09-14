@@ -80,7 +80,7 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
         try self.addMetaInputsAndOutputs()
         metadataEncodingTarget.activateMetadataTrack()
       } catch {
-        fatalError("ERROR: Could not connect audio target with error: \(error)")
+        fatalError("ERROR: Could not connect metadata target with error: \(error)")
       }
     }
   }

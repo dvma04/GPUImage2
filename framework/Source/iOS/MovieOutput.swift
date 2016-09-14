@@ -26,6 +26,12 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     public let assetWriterVideoInput:AVAssetWriterInput
     var assetWriterAudioInput:AVAssetWriterInput?
 
+    public var recordDuration: Double {
+        guard let startTime = startTime where previousFrameTime != kCMTimeNegativeInfinity else { return 0 }
+        let length = (previousFrameTime - startTime).seconds
+        return length
+    }
+
     let assetWriterPixelBufferInput:AVAssetWriterInputPixelBufferAdaptor
     let size:Size
     let colorSwizzlingShader:ShaderProgram
@@ -142,15 +148,9 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
         guard let frameTime = framebuffer.timingStyle.timestamp?.asCMTime else { return }
         // If two consecutive times with the same value are added to the movie, it aborts recording, so I bail on that case
         guard (frameTime != previousFrameTime) else { return }
-        
-        if (startTime == nil) {
-            if (assetWriter.status != .Writing) {
-                assetWriter.startWriting()
-            }
-            
-            assetWriter.startSessionAtSourceTime(frameTime)
-            startTime = frameTime
-        }
+
+        startRecordSessionIfNeeded(frameTime)
+        previousFrameTime = frameTime
 
         // TODO: Run the following on an internal movie recording dispatch queue, context
         guard (assetWriterVideoInput.readyForMoreMediaData || (!encodingLiveVideo)) else {
@@ -207,16 +207,11 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     public func processAudioBuffer(sampleBuffer:CMSampleBuffer) {
         guard let assetWriterAudioInput = assetWriterAudioInput else { return }
         
-        sharedImageProcessingContext.runOperationSynchronously{
+        sharedImageProcessingContext.runOperationSynchronously {
             let currentSampleTime = CMSampleBufferGetOutputPresentationTimeStamp(sampleBuffer)
-            if (self.startTime == nil) {
-                if (self.assetWriter.status != .Writing) {
-                    self.assetWriter.startWriting()
-                }
-                
-                self.assetWriter.startSessionAtSourceTime(currentSampleTime)
-                self.startTime = currentSampleTime
-            }
+            guard (currentSampleTime != self.previousAudioTime) else { return }
+            self.previousAudioTime = currentSampleTime
+            self.startRecordSessionIfNeeded(currentSampleTime)
             
             guard (assetWriterAudioInput.readyForMoreMediaData || (!self.encodingLiveVideo)) else {
                 return
@@ -225,6 +220,18 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
             if (!assetWriterAudioInput.appendSampleBuffer(sampleBuffer)) {
                 print("Trouble appending audio sample buffer")
             }
+        }
+    }
+
+    private func startRecordSessionIfNeeded(frameTime: CMTime) {
+
+        if !recordSessionStared {
+            if (assetWriter.status != .Writing) {
+                assetWriter.startWriting()
+            }
+
+            assetWriter.startSessionAtSourceTime(frameTime)
+            startTime = frameTime
         }
     }
 }
@@ -248,6 +255,14 @@ extension MovieOutput: MetadataOutputTarget {
             return metadataAdapter.appendTimedMetadataGroup(timedMetadataGroup)
         }
 
+    }
+
+}
+
+extension MovieOutput {
+
+    var recordSessionStared: Bool {
+        return startTime != nil
     }
 
 }

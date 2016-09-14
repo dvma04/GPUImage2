@@ -14,6 +14,7 @@ public class PictureOutput: ImageConsumer {
     
     public let sources = SourceContainer()
     public let maximumInputs:UInt = 1
+
     var url:NSURL!
     
     public init() {
