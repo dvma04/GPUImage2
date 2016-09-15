@@ -27,11 +27,20 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     var assetWriterAudioInput:AVAssetWriterInput?
 
     public var recordDuration: Double {
-        guard let startTime = startTime where previousFrameTime != kCMTimeNegativeInfinity else { return 0 }
-        let length = (previousFrameTime - startTime).seconds
-        return length
+        return recordedSessionsDuration + currentSessionDuration
     }
 
+    private var currentSessionDuration: Double {
+        guard let startTime = startTime where previousFrameTime != kCMTimeNegativeInfinity else {
+            return 0.0
+        }
+        let duration = (previousFrameTime - startTime).seconds
+        return duration
+    }
+
+    private var recordedSessionsDuration = 0.0
+
+    var canAppendSample: Bool = true
     let assetWriterPixelBufferInput:AVAssetWriterInputPixelBufferAdaptor
     let size:Size
     let colorSwizzlingShader:ShaderProgram
@@ -147,11 +156,11 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
         defer {
             framebuffer.unlock()
         }
-        guard isRecording else { return }
+        guard isRecording && canAppendSample else { return }
         // Ignore still images and other non-video updates (do I still need this?)
         guard let frameTime = framebuffer.timingStyle.timestamp?.asCMTime else { return }
         // If two consecutive times with the same value are added to the movie, it aborts recording, so I bail on that case
-        guard (frameTime != previousFrameTime) else { return }
+        guard frameTime != previousFrameTime  else { return }
 
         startRecordSessionIfNeeded(frameTime)
         previousFrameTime = frameTime
@@ -209,6 +218,7 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     }
     
     public func processAudioBuffer(sampleBuffer:CMSampleBuffer) {
+        guard isRecording && canAppendSample else { return }
         guard let assetWriterAudioInput = assetWriterAudioInput else { return }
         
         sharedImageProcessingContext.runOperationSynchronously {
@@ -228,16 +238,34 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     }
 
     private func startRecordSessionIfNeeded(frameTime: CMTime) {
-
         if !recordSessionStared {
-            if (assetWriter.status != .Writing) {
+            if (assetWriter.status == .Unknown) {
                 assetWriter.startWriting()
             }
 
+            print("GPUImage: frame time \(frameTime)")
             assetWriter.startSessionAtSourceTime(frameTime)
             startTime = frameTime
         }
     }
+
+    public func pauseSession() {
+        sharedImageProcessingContext.runOperationSynchronously {
+          self._pauseSession()
+        }
+    }
+
+    public func startSessionWithNextFrame () {
+        canAppendSample = true
+    }
+
+    private func _pauseSession() {
+        assetWriter.endSessionAtSourceTime(previousFrameTime)
+        canAppendSample = false
+        recordedSessionsDuration = recordDuration
+        startTime = nil
+    }
+
 }
 
 extension MovieOutput: MetadataOutputTarget {
@@ -253,14 +281,19 @@ extension MovieOutput: MetadataOutputTarget {
     }
 
     public func appendTimedMetadataGroup(timedMetadataGroup: AVTimedMetadataGroup) -> Bool {
-        guard let metadataAdapter = metadataAdapter where isRecording else { return  false }
+        guard isRecording && canAppendSample else {
+            return false
+        }
+        guard let metadataAdapter = metadataAdapter where isRecording else {
+            return false
+        }
 
-        return sharedImageProcessingContext.runOperationSynchronously { () -> Bool in
+        return sharedImageProcessingContext.runOperationSynchronously {
+            () -> Bool in
             return metadataAdapter.appendTimedMetadataGroup(timedMetadataGroup)
         }
 
     }
-
 }
 
 extension MovieOutput {
