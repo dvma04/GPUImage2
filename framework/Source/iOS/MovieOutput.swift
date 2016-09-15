@@ -128,6 +128,10 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
                 self.audioEncodingIsFinished = true
                 self.assetWriterAudioInput?.markAsFinished()
             }
+            if ((self.assetWriter.status == .Writing) && (!self.metadataOutputIsFinihsed)) {
+                self.metadataOutputIsFinihsed = true
+                self.assetWriterMetadataInput?.markAsFinished()
+            }
             
             // Why can't I use ?? here for the callback?
             if let callback = completionCallback {
