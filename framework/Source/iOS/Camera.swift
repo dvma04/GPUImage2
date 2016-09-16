@@ -2,7 +2,7 @@ import Foundation
 import AVFoundation
 import CoreMedia
 
-public protocol CameraDelegate {
+public protocol CameraDelegate: AnyObject{
   func didCaptureBuffer(sampleBuffer: CMSampleBuffer)
 }
 
@@ -86,7 +86,7 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
   }
 
   public let targets = TargetContainer()
-  public var delegate: CameraDelegate?
+  public weak var delegate: CameraDelegate?
   let captureSession: AVCaptureSession
   let inputCamera: AVCaptureDevice!
   let videoInput: AVCaptureDeviceInput!
@@ -195,6 +195,7 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
       self.audioOutput?.setSampleBufferDelegate(nil, queue: nil)
       self.metadataOutput?.setMetadataObjectsDelegate(nil, queue: nil)
     }
+    delegate = nil
   }
 
   public func captureOutput(captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, fromConnection connection: AVCaptureConnection!) {
