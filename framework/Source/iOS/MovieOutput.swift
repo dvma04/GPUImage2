@@ -208,7 +208,7 @@ public class MovieOutput: ImageConsumer, AudioEncodingTarget {
     }
     
     public func processAudioBuffer(_ sampleBuffer:CMSampleBuffer) {
-        guard let assetWriterAudioInput = assetWriterAudioInput else { return }
+        guard let assetWriterAudioInput = assetWriterAudioInput, recordSessionStared else { return }
         
         sharedImageProcessingContext.runOperationSynchronously {
             let currentSampleTime = CMSampleBufferGetOutputPresentationTimeStamp(sampleBuffer)
@@ -252,7 +252,7 @@ extension MovieOutput: MetadataOutputTarget {
     }
 
     public func append(timedMetadataGroup: AVTimedMetadataGroup) -> Bool {
-        guard let metadataAdapter = metadataAdapter, isRecording else { return  false }
+        guard let metadataAdapter = metadataAdapter,  recordSessionStared else { return  false }
 
         return sharedImageProcessingContext.runOperationSynchronously { () -> Bool in
             return metadataAdapter.append(timedMetadataGroup)
