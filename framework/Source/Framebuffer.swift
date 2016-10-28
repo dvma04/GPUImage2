@@ -166,13 +166,15 @@ public class Framebuffer {
     func resetRetainCount() {
         framebufferRetainCount = 0
     }
-    
+
+
     func unlock() {
+		    if framebufferRetainCount < 0 && cache != nil {
+			    print("WARNING: Tried to overrelease a framebuffer")
+			    return
+		    }
         framebufferRetainCount -= 1
         if (framebufferRetainCount < 1) {
-            if ((framebufferRetainCount < 0) && (cache != nil)) {
-                print("WARNING: Tried to overrelease a framebuffer")
-            }
             framebufferRetainCount = 0
             cache?.returnToCache(self)
         }
