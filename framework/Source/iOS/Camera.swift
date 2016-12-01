@@ -387,15 +387,14 @@ public class Camera: NSObject, ImageSource, AVCaptureVideoDataOutputSampleBuffer
 	private func filterMetadataIfNeeded() {
 		guard let metaOutput = metadataOutput, let requestedTypes = metadataEncodingTarget?.expectedMetaTypes else { return }
 
-		let available = NSSet(array: metaOutput.availableMetadataObjectTypes)
-		available.intersects(requestedTypes)
-		metaOutput.metadataObjectTypes = available.allObjects
+		let available = Set(metaOutput.availableMetadataObjectTypes as? [String] ?? [])
+		metaOutput.metadataObjectTypes = Array(available.intersection(requestedTypes))
 	}
 }
 
 extension Camera: AVCaptureMetadataOutputObjectsDelegate {
 
-	public func captureOutput(captureOutput: AVCaptureOutput!, didOutputMetadataObjects metadataObjects: [AnyObject]!, fromConnection connection: AVCaptureConnection!) {
+	public func captureOutput(_ captureOutput: AVCaptureOutput!, didOutputMetadataObjects metadataObjects: [Any]!, from connection: AVCaptureConnection!) {
 		metadataEncodingTarget?.process(metadataObjects: metadataObjects)
 	}
 

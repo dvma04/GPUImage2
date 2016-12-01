@@ -10,7 +10,7 @@ public protocol MetadataEncodingTarget {
     var expectedMetaTypes:Set<String>? {get}
 
     func activateMetadataTrack()
-    func process(metadataObjects: [AnyObject]!)
+    func process(metadataObjects: [Any]!)
 }
 
 public protocol MetadataOutputTarget {
@@ -257,7 +257,6 @@ extension MovieOutput: MetadataOutputTarget {
         return sharedImageProcessingContext.runOperationSynchronously { () -> Bool in
             return metadataAdapter.append(timedMetadataGroup)
         }
-
     }
 
 }
